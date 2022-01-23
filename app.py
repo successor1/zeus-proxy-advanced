@@ -33,13 +33,16 @@ from google.protobuf.json_format import MessageToDict
 import grpc
 import time
 import re
-import json
+import simplejson as json
+from os import environ
 
 app = Flask(__name__)
 
 mainnet_node_public_address = "mainnet-1.automated.theqrl.org:19009"
 testnet_node_public_address = "127.0.0.1:19009"
 CONNECTION_TIMEOUT = 5
+
+HEX_SEED = environ.get('HEX_SEED')
 
 @app.route("/")
 def index():
@@ -222,7 +225,7 @@ def faucet():
     error = None
     if request.method == 'POST':
         if valid_qaddress(request.form['qaddress']):
-            return send_testnet_coins(request.form['qaddress'], request.form['amount'])
+            return send_testnet_coins(request.form['qaddress'], request.form['amount'], request.form['ots_key'])
         else:
             error = 'Invalid QRL address'
     return render_template('faucet.html', error=error)
@@ -239,16 +242,17 @@ def tx_unbase64(tx_json_str):
     tx_json["signature"] = base64tohex(tx_json["signature"])
     tx_json["transactionHash"] = base64tohex(tx_json["transactionHash"])
     tx_json["transfer"]["addrsTo"] = [base64tohex(v) for v in tx_json["transfer"]["addrsTo"]]
+    print(tx_json)
     return json.dumps(tx_json, indent=True, sort_keys=True)
 
 def base64tohex(data):
     return hexlify(a2b_base64(data))
 
-def send_testnet_coins(addrs_to, amounts):
+def send_testnet_coins(addrs_to, amount, ots_key):
     print(addrs_to)
     master_addr = None
     bytes_addrs_to = []
-    fee = [1000000000]
+    fee = 1000000000
     message_data = None
     xmss_pk = XMSS.from_extended_seed(hstr2bin("010400bc2f62ec1161bba8eece8b511ce6e38f73254f42f045c08f403b9fb3f101a46d0f2b8d1b6da30c0ad8dd88b356e9022b")).pk
     # if len([addrs_to]) > 1:
@@ -257,15 +261,9 @@ def send_testnet_coins(addrs_to, amounts):
     # elif len([addrs_to]) == 1:
     #     bytes_addrs_to.append(bytes(hstr2bin(addrs_to[1:])))
 
-    shor_amounts = [int(float(str(i) + "e9")) for i in amounts]
-    print(type([bytes(hstr2bin(str(addrs_to[1:])))]))
-    print(type(shor_amounts))
-    print(type(message_data))
-    print(type(fee))
-    print(type(xmss_pk))
-    print(type(master_addr))
+    shor_amounts = [int(float(str(i) + "e9")) for i in [amount]]
     # Q0104008eeaa68d90419bc8401b15882d0bcf6c9190d652923f768cac621b58d7e7c7945d7fc97f
-    tx = TransferTransaction.create(addrs_to = [bytes(hstr2bin(str(addrs_to[1:])))],
+    tx = TransferTransaction.create(addrs_to=[bytes(hstr2bin(str(addrs_to[1:])))],
                                         amounts = shor_amounts,
                                         message_data = message_data,
                                         fee = fee,
@@ -273,8 +271,8 @@ def send_testnet_coins(addrs_to, amounts):
                                         master_addr=master_addr)
 
         # Sign transaction
-    src_xmss = XMSS.from_extended_seed(hstr2bin(""))
-    src_xmss.set_ots_index(0)
+    src_xmss = XMSS.from_extended_seed(hstr2bin(HEX_SEED))
+    src_xmss.set_ots_index(int(ots_key))
     tx.sign(src_xmss)
 
         # Print result
@@ -298,5 +296,4 @@ def send_testnet_coins(addrs_to, amounts):
     push_transaction_req = qrl_pb2.PushTransactionReq(transaction_signed=tx.pbdata)
     push_transaction_resp = stub.PushTransaction(push_transaction_req, timeout=CONNECTION_TIMEOUT)
 
-    # Print result
-    print(push_transaction_resp)
+    return f'{push_transaction_resp}'

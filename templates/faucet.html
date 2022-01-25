@@ -5,8 +5,17 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <script src="https://www.google.com/recaptcha/api.js"></script>
 </head>
+<script>
+    function onSubmit(token) {
+      document.getElementById("demo-form").submit();
+    }
+  </script> 
 <body>
+    <h1>Testnet faucet & Zeus-proxy advanced</h1>
+    <h2>Please return the testnet coins once finished: Q0104001f0b2c80a2b3843bc33e96c541801989d6a5dcbc17f0672de58853be808fcd24deed3470</h2>
+    <img src="/static/qrcode.png" alt="QR code">
     <form action="{{ url_for('faucet') }}" method="post">
         <label for="qaddress">QRL address:</label>
         <input type="text" id="qaddress" name="qaddress"><br><br>
@@ -14,7 +23,9 @@
         <input type="text" id="amount" name="amount"><br><br>
         <label for="ots_key">OTS Key:</label>
         <input type="text" id="ots_key" name="ots_key"><br><br>
-        <input type="submit" value="Submit">
+        <div class="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+        <br/>
+        <input type="submit" value="Submit">  
       </form> 
       {{error}}
 </body>

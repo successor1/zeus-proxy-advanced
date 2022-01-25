@@ -1,8 +1,11 @@
+from datetime import datetime
+from flask import Flask, redirect, url_for, render_template, request, jsonify, send_from_directory
+from flask_restx import Resource, Api
+
 from audioop import add
 from doctest import master
 from email import header
 from json.tool import main
-from flask import Flask, redirect, url_for, render_template, request, jsonify
 from os import stat
 from grpc import ServicerContext, StatusCode
 from pyqrllib.pyqrllib import str2bin, hstr2bin, bin2hstr
@@ -35,200 +38,28 @@ import time
 import re
 import simplejson as json
 from os import environ
+import logging
+from datetime import datetime
+from webargs import fields, validate
+from webargs.flaskparser import use_kwargs, parser, use_args
+import os
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
+api = Api(app, version='1.0', title='Zeus-proxy advanced', 
+          description='Zeus-proxy advanced & Testnet faucet')
+
+ns = api.namespace('', description='Communicate with QRL Nodes')
+fh = logging.FileHandler("v1.log")
+ns.logger.addHandler(fh)
 
 mainnet_node_public_address = "mainnet-1.automated.theqrl.org:19009"
-testnet_node_public_address = "127.0.0.1:19009"
+testnet_node_public_address = "testnet-1.automated.theqrl.org:19009"
+dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 CONNECTION_TIMEOUT = 5
 
 HEX_SEED = environ.get('HEX_SEED')
-
-@app.route("/")
-def index():
-    return render_template("faucet.html")
-
-@app.route("/grpc/mainnet/GetHeight")
-def mainnet_GetHeight():
-    channel = grpc.insecure_channel(mainnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetHeightReq()
-    response = stub.GetHeight(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetHeight")
-def testnet_GetHeight():
-    peer_grpc_channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    peer_stub = qrl_pb2_grpc.PublicAPIStub(peer_grpc_channel)
-    block_height_req = qrl_pb2.GetHeightReq()
-    block_height_resp = peer_stub.GetHeight(block_height_req, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(block_height_resp)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/mainnet/GetStats")
-def mainnet_GetStats():
-    channel = grpc.insecure_channel(mainnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetStatsReq()
-    response = stub.GetStats(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetStats")
-def testnet_GetStats():
-    channel = grpc.insecure_channel(testnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetStatsReq()
-    response = stub.GetStats(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/mainnet/GetBalance/<qaddress>")
-def mainnet_GetBalance(qaddress):
-    binary_qrl_address = bytes(hstr2bin(qaddress[1:]))
-    channel = grpc.insecure_channel(testnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBalanceReq(address=binary_qrl_address)
-    response = stub.GetBalance(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetBalance/<qaddress>")
-def testnet_GetBalance(qaddress):
-    binary_qrl_address = bytes(hstr2bin(qaddress[1:]))
-    channel = grpc.insecure_channel(testnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBalanceReq(address=binary_qrl_address)
-    response = stub.GetBalance(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/mainnet/GetBlockByNumber/<number>")
-def mainnet_GetBlockByNumber(number):
-    channel = grpc.insecure_channel(mainnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBlockByNumberReq(block_number=int(number))
-    response = stub.GetBlockByNumber(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetBlockByNumber/<number>")
-def testnet_GetBlockByNumber(number):
-    channel = grpc.insecure_channel(testnet_node_public_address)
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBlockByNumberReq(block_number=int(number))
-    response = stub.GetBlockByNumber(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/mainnet/GetBlock/<headerhash>")
-def mainnet_GetBlock(headerhash):
-    channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBlockReq(header_hash=bytes(hstr2bin(headerhash)))
-    response = stub.GetBlock(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetBlock/<headerhash>")
-def testnet_GetBlock(headerhash):
-    channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetBlockReq(header_hash=bytes(hstr2bin(headerhash)))
-    response = stub.GetBlock(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/mainnet/GetOTS/<qaddress>")
-def mainnet_GetOTS(qaddress):
-    channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetOTSReq(address=bytes(hstr2bin(qaddress[1:])))
-    response = stub.GetOTS(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/testnet/GetOTS/<qaddress>")
-def testnet_GetOTS(qaddress):
-    channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetOTSReq(address=bytes(hstr2bin(qaddress[1:])))
-    response = stub.GetOTS(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/mainnet/GetTotalBalance/<qaddress>")
-def mainnet_GetTotalBalance(qaddress):
-    peer_grpc_channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    peer_stub = qrl_pb2_grpc.PublicAPIStub(peer_grpc_channel)
-    total_Bal_req = qrl_pb2.GetTotalBalanceReq(addresses=[bytes(hstr2bin(str(qaddress[1:])))])
-    total_Bal_resp = peer_stub.GetTotalBalance(total_Bal_req, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(total_Bal_resp)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-
-@app.route("/grpc/testnet/GetTotalBalance/<qaddress>")
-def testnet_GetTotalBalance(qaddress):
-    peer_grpc_channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    peer_stub = qrl_pb2_grpc.PublicAPIStub(peer_grpc_channel)
-    total_Bal_req = qrl_pb2.GetTotalBalanceReq(addresses=[bytes(hstr2bin(str(qaddress[1:])))])
-    total_Bal_resp = peer_stub.GetTotalBalance(total_Bal_req, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(total_Bal_resp)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/grpc/mainnet/GetTransaction/<transaction_hash>")
-def mainnet_GetTransaction(transaction_hash):
-    channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetTransactionReq(tx_hash=bytes(hstr2bin(transaction_hash)))
-    response = stub.GetTransaction(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/testnet/GetTransaction/<transaction_hash>")
-def testnet_GetTransaction(transaction_hash):
-    channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetTransactionReq(tx_hash=bytes(hstr2bin(transaction_hash)))
-    response = stub.GetTransaction(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/mainnet/GetMiniTransactionsByAddress/<qaddress>")
-def mainnet_GetMiniTransactionsByAddress(qaddress):
-    channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetMiniTransactionsByAddressReq(address=bytes(hstr2bin(qaddress[1:])), item_per_page=100000, page_number=1)
-    response = stub.GetMiniTransactionsByAddress(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-
-@app.route("/grpc/testnet/GetMiniTransactionsByAddress/<qaddress>")
-def testnet_GetMiniTransactionsByAddress(qaddress):
-    channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
-    stub = qrl_pb2_grpc.PublicAPIStub(channel)
-    request = qrl_pb2.GetMiniTransactionsByAddressReq(address=bytes(hstr2bin(qaddress[1:])), item_per_page=100000, page_number=1)
-    response = stub.GetMiniTransactionsByAddress(request, timeout=CONNECTION_TIMEOUT)
-    dict_obj = MessageToDict(response)
-    return app.response_class(json.dumps(dict_obj), mimetype="application/json")
-
-@app.route("/api/faucet", methods=['POST'])
-def faucet():
-    error = None
-    if request.method == 'POST':
-        if valid_qaddress(request.form['qaddress']):
-            return send_testnet_coins(request.form['qaddress'], request.form['amount'], request.form['ots_key'])
-        else:
-            error = 'Invalid QRL address'
-    return render_template('faucet.html', error=error)
 
 def valid_qaddress(request_form):
     if len(request_form) == 79:
@@ -290,10 +121,132 @@ def send_testnet_coins(addrs_to, amount, ots_key):
 
     # Push transaction
     print("Sending to a QRL Node...")
-    node_public_address = 'testnet-1.automated.theqrl.org:19009'
-    channel = grpc.insecure_channel(node_public_address)
+    channel = grpc.insecure_channel(testnet_node_public_address)
     stub = qrl_pb2_grpc.PublicAPIStub(channel)
     push_transaction_req = qrl_pb2.PushTransactionReq(transaction_signed=tx.pbdata)
     push_transaction_resp = stub.PushTransaction(push_transaction_req, timeout=CONNECTION_TIMEOUT)
 
     return f'{push_transaction_resp}'
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),'favicon.ico',mimetype='image/vnd.microsoft.icon')
+
+parser = api.parser()
+parser.add_argument('qaddress', type=str, required=True)
+parser.add_argument('amount', type=int, required=True)
+parser.add_argument('ots_key', type=int, required=True)
+
+
+@ns.route('/api/faucet')
+@api.doc(description=
+"""
+# Attention: 
+Return it to Q0104001f0b2c80a2b3843bc33e96c541801989d6a5dcbc17f0672de58853be808fcd24deed3470 once you're finished with the testnet coins!
+""")
+class Faucet(Resource):
+    @api.expect(parser, validate=True)
+    def post(self):
+        args = parser.parse_args()
+        if valid_qaddress(args['qaddress']):
+            return send_testnet_coins(args['qaddress'], args['amount'], args['ots_key'])
+        else:
+            error = 'Invalid QRL address'
+            return error
+
+@ns.route('/grpc/mainnet/GetHeight')
+class GetHeight_Mainnet(Resource):
+    def get(self):
+        channel = grpc.insecure_channel(mainnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetHeightReq()
+        response = stub.GetHeight(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetHeight mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route('/grpc/testnet/GetHeight')
+class GetHeight_Testnet(Resource):
+    def get(self):
+        channel = grpc.insecure_channel(testnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetHeightReq()
+        response = stub.GetHeight(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetHeight testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route('/grpc/mainnet/GetStats')
+class GetStats_Mainnet(Resource):
+    def get(self):
+        channel = grpc.insecure_channel(mainnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetStatsReq()
+        response = stub.GetStats(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetStats mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+
+@ns.route('/grpc/testnet/GetStats')
+class GetStats_Testnet(Resource):
+    def get(self):
+        channel = grpc.insecure_channel(testnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetStatsReq()
+        response = stub.GetStats(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetStats testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+
+@ns.route('/grpc/mainnet/GetBalance/<string:qaddress>')
+class GetBalance_Mainnet(Resource):
+    def get(self, qaddress):
+        binary_qrl_address = bytes(hstr2bin(qaddress[1:]))
+        channel = grpc.insecure_channel(mainnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBalanceReq(address=binary_qrl_address)
+        response = stub.GetBalance(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBalance mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route('/grpc/testnet/GetBalance/<string:qaddress>')
+class GetBalance_Testnet(Resource):
+    def get(self, qaddress):
+        binary_qrl_address = bytes(hstr2bin(qaddress[1:]))
+        channel = grpc.insecure_channel(testnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBalanceReq(address=binary_qrl_address)
+        response = stub.GetBalance(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBalance testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route('/grpc/mainnet/GetBlockByNumber/<number>')
+class GetBlockByNumber_Mainnet(Resource):
+    def get(self, number):
+        channel = grpc.insecure_channel(mainnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBlockByNumberReq(block_number=int(number))
+        response = stub.GetBlockByNumber(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBlockByNumber mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+
+
+@ns.route('/grpc/testnet/GetBlockByNumber/<number>')
+class GetBlockByNumber_Testnet(Resource):
+    def get(self, number):
+        channel = grpc.insecure_channel(mainnet_node_public_address)
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBlockByNumberReq(block_number=int(number))
+        response = stub.GetBlockByNumber(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBlockByNumber testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+if __name__ == '__main__':
+    app.run(debug=True)

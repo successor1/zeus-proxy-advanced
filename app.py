@@ -378,5 +378,116 @@ class GetBlockByNumber_Testnet(Resource):
         ns.logger.info(dt_string + " | GetBlockByNumber testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
         return app.response_class(json.dumps(dict_obj), mimetype="application/json")
 
+
+@ns.route("/grpc/mainnet/GetBlock/<headerhash>")
+class GetBlock_Mainnet(Resource):
+    def get(self, headerhash):
+        channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBlockReq(header_hash=bytes(hstr2bin(headerhash)))
+        response = stub.GetBlock(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBlock mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/testnet/GetBlock/<headerhash>")
+class GetBlock_Testnet(Resource):
+    def get(self, headerhash):
+        channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetBlockReq(header_hash=bytes(hstr2bin(headerhash)))
+        response = stub.GetBlock(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetBlock testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/mainnet/GetOTS/<qaddress>")
+class GetOTS_Mainnet(Resource):
+    def get(self, qaddress):
+        channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetOTSReq(address=bytes(hstr2bin(qaddress[1:])))
+        response = stub.GetOTS(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetOTS mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/testnet/GetOTS/<qaddress>")
+class GetOTS_Testnet(Resource):
+    def get(self, qaddress):
+        channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetOTSReq(address=bytes(hstr2bin(qaddress[1:])))
+        response = stub.GetOTS(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetOTS testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/mainnet/GetTotalBalance/<qaddress>")
+class GetTotalBalance_Mainnet(Resource):
+    def get(self, qaddress):
+        peer_grpc_channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        peer_stub = qrl_pb2_grpc.PublicAPIStub(peer_grpc_channel)
+        total_Bal_req = qrl_pb2.GetTotalBalanceReq(addresses=[bytes(hstr2bin(str(qaddress[1:])))])
+        total_Bal_resp = peer_stub.GetTotalBalance(total_Bal_req, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(total_Bal_resp)
+        ns.logger.info(dt_string + " | GetTotalBalance mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/testnet/GetTotalBalance/<qaddress>")
+class GetTotalBalance_Testnet(Resource):
+    def get(self, qaddress):
+        peer_grpc_channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        peer_stub = qrl_pb2_grpc.PublicAPIStub(peer_grpc_channel)
+        total_Bal_req = qrl_pb2.GetTotalBalanceReq(addresses=[bytes(hstr2bin(str(qaddress[1:])))])
+        total_Bal_resp = peer_stub.GetTotalBalance(total_Bal_req, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(total_Bal_resp)
+        ns.logger.info(dt_string + " | GetTotalBalance testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/mainnet/GetTransaction/<transaction_hash>")
+class GetTransaction_Mainnet(Resource):
+    def get(self, transaction_hash):
+        channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetTransactionReq(tx_hash=bytes(hstr2bin(transaction_hash)))
+        response = stub.GetTransaction(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetTransaction mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/testnet/GetTransaction/<transaction_hash>")
+class GetTransaction_Testnet(Resource):
+    def get(self, transaction_hash):
+        channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetTransactionReq(tx_hash=bytes(hstr2bin(transaction_hash)))
+        response = stub.GetTransaction(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetTransaction testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/mainnet/GetMiniTransactionsByAddress/<qaddress>")
+class GetMiniTransactionByAddress_Mainnet(Resource):
+    def get(self, qaddress):
+        channel = grpc.insecure_channel(mainnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetMiniTransactionsByAddressReq(address=bytes(hstr2bin(qaddress[1:])), item_per_page=100000, page_number=1)
+        response = stub.GetMiniTransactionsByAddress(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetMiniTransactionsByAddress mainnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
+@ns.route("/grpc/testnet/GetMiniTransactionsByAddress/<qaddress>")
+class GetMiniTransactionByAddress_Testnet(Resource):
+    def get(self, qaddress):
+        channel = grpc.insecure_channel(testnet_node_public_address, options=(('grpc.enable_http_proxy', 0),))
+        stub = qrl_pb2_grpc.PublicAPIStub(channel)
+        node_request = qrl_pb2.GetMiniTransactionsByAddressReq(address=bytes(hstr2bin(qaddress[1:])), item_per_page=100000, page_number=1)
+        response = stub.GetMiniTransactionsByAddress(node_request, timeout=CONNECTION_TIMEOUT)
+        dict_obj = MessageToDict(response)
+        ns.logger.info(dt_string + " | GetMiniTransactionsByAddress testnet 200 | " + request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr))
+        return app.response_class(json.dumps(dict_obj), mimetype="application/json")
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -13,7 +13,6 @@ cryptography==2.3
 daemonize==2.4.7
 Flask==2.0.2
 Flask-JWT-Extended==4.3.1
-Flask-Limiter==2.1
 flask-restx==0.5.1
 Flask-SQLAlchemy==2.5.1
 google-api-core==1.31.5

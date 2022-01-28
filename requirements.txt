@@ -49,14 +49,11 @@ PyHamcrest==2.0.3
 PyJWT==2.3.0
 pyOpenSSL==17.5.0
 pyparsing==3.0.6
-pyqrandomx==0.3.1
-pyqrllib==1.2.4
-pyqryptonight==0.99.10
 pyrsistent==0.18.1
 python-dotenv==0.19.2
 pytz==2021.3
 PyYAML==5.3.1
-qrl==2.1.2
+qrl==3.0.1
 requests==2.27.1
 responses==0.17.0
 rsa==4.8
